@@ -69,7 +69,8 @@ python train_text.py
 streamlit run app.py
 Project Structure
 
-.
+|-- .streamlit/
+|    |-- config.toml
 ├── app.py                  # Main Streamlit app for user interaction
 ├── train_image.py          # Script to train image classification model
 ├── train_audio.py          # Script to train audio classification model
@@ -92,4 +93,5 @@ Combat misinformation and fake news.
 Prevent misuse of AI-generated media.
 Assist researchers and analysts in detecting synthetic content.
 Help platforms moderate uploaded content efficiently.
+
 The modular design allows easy extension to new modalities and integration with production systems.
