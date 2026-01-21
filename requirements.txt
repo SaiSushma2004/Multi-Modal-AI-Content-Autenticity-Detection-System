@@ -1,0 +1,13 @@
+tensorflow
+opencv-python
+numpy
+pandas
+scikit-learn
+streamlit
+pillow
+librosa
+soundfile
+matplotlib
+nltk
+pickle-mixin
+joblib
