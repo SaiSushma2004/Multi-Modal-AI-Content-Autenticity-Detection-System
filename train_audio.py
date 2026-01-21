@@ -4,130 +4,165 @@ import librosa
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout, Conv1D, MaxPooling1D, Flatten, BatchNormalization
+from tensorflow.keras.layers import (
+    Conv1D, MaxPooling1D, Dense, Dropout,
+    BatchNormalization, Flatten
+)
 from tensorflow.keras.callbacks import EarlyStopping
 
-# -----------------------
-# CONFIG
-# -----------------------
+# =======================
+# CONFIGURATION
+# =======================
 AUDIO_PATH = "dataset/audio"
-SAMPLE_RATE = 22050
-DURATION = 3   # seconds
-SAMPLES = SAMPLE_RATE * DURATION
 MODEL_PATH = "model/audio_model.h5"
 
-# -----------------------
-# AUDIO FEATURE FUNCTION
-# -----------------------
-def extract_features(file_path):
-    try:
-        audio, sr = librosa.load(file_path, sr=SAMPLE_RATE, duration=DURATION)
-        if len(audio) < SAMPLES:
-            padding = SAMPLES - len(audio)
-            audio = np.pad(audio, (0, padding), 'constant')
+SAMPLE_RATE = 22050
+DURATION = 3  # seconds
+SAMPLES = SAMPLE_RATE * DURATION
+N_MFCC = 40
 
-        mfccs = librosa.feature.mfcc(y=audio, sr=sr, n_mfcc=40)
-        mfccs = np.mean(mfccs.T, axis=0)
-        return mfccs
+# =======================
+# FEATURE EXTRACTION
+# =======================
+def extract_audio_features(file_path):
+    """
+    Extract MFCC features from audio file
+    Output shape: (40,)
+    """
+    try:
+        audio, sr = librosa.load(
+            file_path,
+            sr=SAMPLE_RATE,
+            duration=DURATION
+        )
+
+        # Pad audio if too short
+        if len(audio) < SAMPLES:
+            audio = np.pad(audio, (0, SAMPLES - len(audio)))
+
+        # MFCC extraction
+        mfcc = librosa.feature.mfcc(
+            y=audio,
+            sr=sr,
+            n_mfcc=N_MFCC
+        )
+
+        # Mean pooling over time
+        mfcc_mean = np.mean(mfcc.T, axis=0)
+
+        return mfcc_mean.astype(np.float32)
 
     except Exception as e:
-        print(f"Error processing {file_path}: {e}")
+        print(f"❌ Error processing {file_path}: {e}")
         return None
 
-# -----------------------
+# =======================
 # LOAD DATASET
-# -----------------------
-X = []
-y = []
+# =======================
+X, y = [], []
 
 print("\n📥 Loading audio dataset...")
 
 for label, category in enumerate(["FAKE", "REAL"]):
-    folder_path = os.path.join(AUDIO_PATH, category)
+    category_path = os.path.join(AUDIO_PATH, category)
 
-    if not os.path.exists(folder_path):
-        print(f"⚠ Folder not found: {folder_path}")
+    if not os.path.exists(category_path):
+        print(f"⚠ Missing folder: {category_path}")
         continue
 
-    print(f"Processing {category} files...")
+    print(f"Processing {category} audio files...")
 
-    for file in os.listdir(folder_path):
-        if file.endswith(".wav") or file.endswith(".mp3"):
-            file_path = os.path.join(folder_path, file)
-            features = extract_features(file_path)
+    for file in os.listdir(category_path):
+        if file.lower().endswith((".wav", ".mp3")):
+            file_path = os.path.join(category_path, file)
+            features = extract_audio_features(file_path)
 
-            if features is not None:
+            if features is not None and features.shape == (N_MFCC,):
                 X.append(features)
                 y.append(label)
 
-print(f"\nTotal samples: {len(X)}")
+print(f"\n✅ Total samples loaded: {len(X)}")
 
 X = np.array(X)
 y = np.array(y)
 
-# -----------------------
-# CHECK DATA BALANCE
-# -----------------------
-print("\n📊 Label distribution:")
+# =======================
+# DATA CHECK
+# =======================
+print("\n📊 Label Distribution:")
 print("FAKE:", np.sum(y == 0))
 print("REAL:", np.sum(y == 1))
 
-# -----------------------
+# =======================
 # TRAIN-TEST SPLIT
-# -----------------------
+# =======================
 X_train, X_val, y_train, y_val = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y
+    X,
+    y,
+    test_size=0.2,
+    random_state=42,
+    stratify=y
 )
 
-# Reshape for CNN
+# Reshape for CNN → (samples, features, channels)
 X_train = X_train[..., np.newaxis]
 X_val = X_val[..., np.newaxis]
 
-# -----------------------
-# BUILD MODEL
-# -----------------------
+print("\n🔍 Input shape:", X_train.shape)
+
+# =======================
+# MODEL ARCHITECTURE
+# =======================
 model = Sequential([
-    Conv1D(64, 3, activation='relu', input_shape=(X_train.shape[1], 1)),
+    Conv1D(64, kernel_size=3, activation="relu",
+           input_shape=(N_MFCC, 1)),
     BatchNormalization(),
-    MaxPooling1D(2),
+    MaxPooling1D(pool_size=2),
     Dropout(0.3),
 
-    Conv1D(128, 3, activation='relu'),
+    Conv1D(128, kernel_size=3, activation="relu"),
     BatchNormalization(),
-    MaxPooling1D(2),
+    MaxPooling1D(pool_size=2),
     Dropout(0.3),
 
     Flatten(),
-    Dense(128, activation='relu'),
+    Dense(128, activation="relu"),
     Dropout(0.4),
-    Dense(1, activation='sigmoid')
+    Dense(1, activation="sigmoid")
 ])
 
 model.compile(
-    optimizer='adam',
-    loss='binary_crossentropy',
-    metrics=['accuracy']
+    optimizer="adam",
+    loss="binary_crossentropy",
+    metrics=["accuracy"]
 )
 
 model.summary()
 
-# -----------------------
+# =======================
 # TRAIN MODEL
-# -----------------------
-early_stop = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+# =======================
+early_stop = EarlyStopping(
+    monitor="val_loss",
+    patience=5,
+    restore_best_weights=True
+)
 
-print("\n🚀 Training audio model...")
+print("\n🚀 Training Audio Authenticity Model...")
 
-history = model.fit(
-    X_train, y_train,
+model.fit(
+    X_train,
+    y_train,
     validation_data=(X_val, y_val),
     epochs=30,
     batch_size=16,
     callbacks=[early_stop]
 )
 
-# -----------------------
+# =======================
 # SAVE MODEL
-# -----------------------
+# =======================
+os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
 model.save(MODEL_PATH)
-print(f"\n✅ Audio model saved at: {MODEL_PATH}")
+
+print(f"\n✅ Model saved successfully at: {MODEL_PATH}")
