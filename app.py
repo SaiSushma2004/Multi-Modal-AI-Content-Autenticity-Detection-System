@@ -1,23 +1,41 @@
 import streamlit as st
 import numpy as np
-import cv2
 import tempfile
 import os
 import joblib
 import librosa
+from PIL import Image
 from tensorflow.keras.models import load_model
 
+# ------------------ CONFIG ------------------
+st.set_page_config(
+    page_title="AI Content Authenticity Detector",
+    layout="centered"
+)
 
+st.title("🛡️ AI Content Authenticity Detector")
+st.write("Detect whether **Image / Audio / Text** is **REAL or AI-GENERATED**")
+
+# ------------------ CONSTANTS ------------------
 SAMPLE_RATE = 22050
 DURATION = 3
 SAMPLES = SAMPLE_RATE * DURATION
 N_MFCC = 40
+IMAGE_SIZE = (128, 128)
 
+# ------------------ MODEL PATHS ------------------
+IMAGE_MODEL_PATH = "model/image_model.h5"
+AUDIO_MODEL_PATH = "model/audio_model.h5"
+TEXT_MODEL_PATH = "model/text_model.pkl"
+TEXT_VECTORIZER_PATH = "model/text_vectorizer.pkl"
+
+# ------------------ AUDIO FEATURE EXTRACTION ------------------
 def extract_audio_features(file_path):
     audio, sr = librosa.load(
         file_path,
         sr=SAMPLE_RATE,
-        duration=DURATION
+        duration=DURATION,
+        mono=True
     )
 
     if len(audio) < SAMPLES:
@@ -30,52 +48,40 @@ def extract_audio_features(file_path):
     )
 
     mfcc = np.mean(mfcc.T, axis=0)
-
-    # Model expects shape (1, 40, 1)
     return mfcc.reshape(1, N_MFCC, 1)
 
-# ------------------ PAGE CONFIG ------------------
-st.set_page_config(
-    page_title="AI Content Authenticity Detector",
-    layout="centered"
-)
-
-st.title("🛡️ AI Content Authenticity Detector")
-st.write("Detect whether **Image / Audio / Text** is **REAL or AI-GENERATED**")
-
-
-
-# ------------------ PATHS ------------------
-IMAGE_MODEL_PATH = "model/image_model.h5"
-AUDIO_MODEL_PATH = "model/audio_model.h5"
-TEXT_MODEL_PATH = "model/text_model.pkl"
-TEXT_VECTORIZER_PATH = "model/text_vectorizer.pkl"
-
-IMAGE_SIZE = (128, 128)
-
-# ------------------ UTILS ------------------
+# ------------------ LOAD MODELS SAFELY ------------------
 @st.cache_resource
 def load_image_model():
+    if not os.path.exists(IMAGE_MODEL_PATH):
+        st.error("❌ Image model not found")
+        st.stop()
     return load_model(IMAGE_MODEL_PATH)
 
 @st.cache_resource
 def load_audio_model():
+    if not os.path.exists(AUDIO_MODEL_PATH):
+        st.error("❌ Audio model not found")
+        st.stop()
     return load_model(AUDIO_MODEL_PATH)
 
 @st.cache_resource
 def load_text_model():
+    if not os.path.exists(TEXT_MODEL_PATH) or not os.path.exists(TEXT_VECTORIZER_PATH):
+        st.error("❌ Text model/vectorizer not found")
+        st.stop()
     model = joblib.load(TEXT_MODEL_PATH)
     vectorizer = joblib.load(TEXT_VECTORIZER_PATH)
     return model, vectorizer
 
-# ------------------ SELECT MODE ------------------
+# ------------------ MODE SELECTION ------------------
 mode = st.selectbox(
     "Select content type",
     ["Image", "Audio", "Text"]
 )
 
 # =================================================
-# IMAGE PREDICTION
+# IMAGE
 # =================================================
 if mode == "Image":
     st.subheader("🖼️ Image Authenticity Check")
@@ -85,22 +91,18 @@ if mode == "Image":
         type=["jpg", "jpeg", "png"]
     )
 
-    if image_file is not None:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
-            tmp.write(image_file.read())
-            img_path = tmp.name
+    if image_file:
+        image = Image.open(image_file).convert("RGB")
+        st.image(image, caption="Uploaded Image", use_container_width=True)
 
-        img = cv2.imread(img_path)
-        img = cv2.resize(img, IMAGE_SIZE)
-        img = img / 255.0
-        img = np.expand_dims(img, axis=0)
+        image = image.resize(IMAGE_SIZE)
+        image = np.array(image) / 255.0
+        image = np.expand_dims(image, axis=0)
 
         model = load_image_model()
-        prediction = model.predict(img)[0][0]
+        prediction = model.predict(image)[0][0]
 
-        os.remove(img_path)
-
-        st.write("🔎 Prediction Score:", float(prediction))
+        st.write("🔎 Prediction Score:", round(float(prediction), 4))
 
         if prediction >= 0.5:
             st.success("🟢 REAL Image")
@@ -108,7 +110,7 @@ if mode == "Image":
             st.error("🔴 AI-GENERATED Image")
 
 # =================================================
-# AUDIO PREDICTION
+# AUDIO
 # =================================================
 elif mode == "Audio":
     st.subheader("🎧 Audio Authenticity Check")
@@ -118,16 +120,14 @@ elif mode == "Audio":
         type=["mp3", "wav"]
     )
 
-    if audio_file is not None:
+    if audio_file:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
             tmp.write(audio_file.read())
             audio_path = tmp.name
 
         try:
             model = load_audio_model()
-
             features = extract_audio_features(audio_path)
-
             prediction = model.predict(features)[0][0]
 
             st.write("🔎 Prediction Score:", round(float(prediction), 4))
@@ -144,21 +144,18 @@ elif mode == "Audio":
             os.remove(audio_path)
 
 # =================================================
-# TEXT PREDICTION
+# TEXT
 # =================================================
 elif mode == "Text":
     st.subheader("📝 Text Authenticity Check")
 
-    text_file = st.file_uploader(
-        "Upload Text File (.txt)",
-        type=["txt"]
-    )
-
+    text_file = st.file_uploader("Upload Text File (.txt)", type=["txt"])
     text_input = st.text_area("Or paste text here")
 
-    if text_file is not None:
+    text = ""
+    if text_file:
         text = text_file.read().decode("utf-8")
-    else:
+    elif text_input.strip():
         text = text_input
 
     if text.strip():
