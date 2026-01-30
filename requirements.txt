@@ -1,9 +1,10 @@
+altair
+pandas
 streamlit
-tensorflow
 numpy
+tensorflow
 librosa
 joblib
 scikit-learn
-pillow
-pandas
-altair
+Pillow
+opencv-python-headless
