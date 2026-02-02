@@ -1,4 +1,4 @@
-import streamlit as st
+import gradio as gr
 import numpy as np
 import tempfile
 import os
@@ -6,15 +6,6 @@ import joblib
 import librosa
 from PIL import Image
 from tensorflow.keras.models import load_model
-
-# ------------------ CONFIG ------------------
-st.set_page_config(
-    page_title="AI Content Authenticity Detector",
-    layout="centered"
-)
-
-st.title("🛡️ AI Content Authenticity Detector")
-st.write("Detect whether **Image / Audio / Text** is **REAL or AI-GENERATED**")
 
 # ------------------ CONSTANTS ------------------
 SAMPLE_RATE = 22050
@@ -29,6 +20,12 @@ AUDIO_MODEL_PATH = "model/audio_model.h5"
 TEXT_MODEL_PATH = "model/text_model.pkl"
 TEXT_VECTORIZER_PATH = "model/text_vectorizer.pkl"
 
+# ------------------ LOAD MODELS ------------------
+image_model = load_model(IMAGE_MODEL_PATH)
+audio_model = load_model(AUDIO_MODEL_PATH)
+text_model = joblib.load(TEXT_MODEL_PATH)
+text_vectorizer = joblib.load(TEXT_VECTORIZER_PATH)
+
 # ------------------ AUDIO FEATURE EXTRACTION ------------------
 def extract_audio_features(file_path):
     audio, sr = librosa.load(
@@ -41,129 +38,61 @@ def extract_audio_features(file_path):
     if len(audio) < SAMPLES:
         audio = np.pad(audio, (0, SAMPLES - len(audio)))
 
-    mfcc = librosa.feature.mfcc(
-        y=audio,
-        sr=sr,
-        n_mfcc=N_MFCC
-    )
-
+    mfcc = librosa.feature.mfcc(y=audio, sr=sr, n_mfcc=N_MFCC)
     mfcc = np.mean(mfcc.T, axis=0)
     return mfcc.reshape(1, N_MFCC, 1)
 
-# ------------------ LOAD MODELS SAFELY ------------------
-@st.cache_resource
-def load_image_model():
-    if not os.path.exists(IMAGE_MODEL_PATH):
-        st.error("❌ Image model not found")
-        st.stop()
-    return load_model(IMAGE_MODEL_PATH)
+# ------------------ IMAGE PREDICTION ------------------
+def predict_image(image):
+    image = image.resize(IMAGE_SIZE)
+    image = np.array(image) / 255.0
+    image = np.expand_dims(image, axis=0)
 
-@st.cache_resource
-def load_audio_model():
-    if not os.path.exists(AUDIO_MODEL_PATH):
-        st.error("❌ Audio model not found")
-        st.stop()
-    return load_model(AUDIO_MODEL_PATH)
+    prediction = image_model.predict(image)[0][0]
+    label = "🟢 REAL Image" if prediction >= 0.5 else "🔴 AI-GENERATED Image"
 
-@st.cache_resource
-def load_text_model():
-    if not os.path.exists(TEXT_MODEL_PATH) or not os.path.exists(TEXT_VECTORIZER_PATH):
-        st.error("❌ Text model/vectorizer not found")
-        st.stop()
-    model = joblib.load(TEXT_MODEL_PATH)
-    vectorizer = joblib.load(TEXT_VECTORIZER_PATH)
-    return model, vectorizer
+    return f"Prediction Score: {prediction:.4f}\n{label}"
 
-# ------------------ MODE SELECTION ------------------
-mode = st.selectbox(
-    "Select content type",
-    ["Image", "Audio", "Text"]
-)
+# ------------------ AUDIO PREDICTION ------------------
+def predict_audio(audio_file):
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+        tmp.write(audio_file)
+        path = tmp.name
 
-# =================================================
-# IMAGE
-# =================================================
-if mode == "Image":
-    st.subheader("🖼️ Image Authenticity Check")
+    features = extract_audio_features(path)
+    prediction = audio_model.predict(features)[0][0]
+    os.remove(path)
 
-    image_file = st.file_uploader(
-        "Upload Image (JPG / PNG)",
-        type=["jpg", "jpeg", "png"]
-    )
+    label = "🟢 REAL Audio" if prediction >= 0.5 else "🔴 AI-GENERATED Audio"
+    return f"Prediction Score: {prediction:.4f}\n{label}"
 
-    if image_file:
-        image = Image.open(image_file).convert("RGB")
-        st.image(image, caption="Uploaded Image", use_container_width=True)
+# ------------------ TEXT PREDICTION ------------------
+def predict_text(text):
+    X = text_vectorizer.transform([text])
+    pred = text_model.predict(X)[0]
 
-        image = image.resize(IMAGE_SIZE)
-        image = np.array(image) / 255.0
-        image = np.expand_dims(image, axis=0)
+    return "🟢 REAL (Human-Written) Text" if pred == 0 else "🔴 AI-GENERATED Text"
 
-        model = load_image_model()
-        prediction = model.predict(image)[0][0]
+# ------------------ GRADIO UI ------------------
+with gr.Blocks(title="AI Content Authenticity Detector") as demo:
+    gr.Markdown("## 🛡️ AI Content Authenticity Detector")
+    gr.Markdown("Detect whether **Image / Audio / Text** is **REAL or AI-GENERATED**")
 
-        st.write("🔎 Prediction Score:", round(float(prediction), 4))
+    with gr.Tabs():
+        with gr.Tab("🖼️ Image"):
+            img_input = gr.Image(type="pil")
+            img_output = gr.Textbox()
+            gr.Button("Analyze Image").click(predict_image, img_input, img_output)
 
-        if prediction >= 0.5:
-            st.success("🟢 REAL Image")
-        else:
-            st.error("🔴 AI-GENERATED Image")
+        with gr.Tab("🎧 Audio"):
+            audio_input = gr.Audio(type="binary")
+            audio_output = gr.Textbox()
+            gr.Button("Analyze Audio").click(predict_audio, audio_input, audio_output)
 
-# =================================================
-# AUDIO
-# =================================================
-elif mode == "Audio":
-    st.subheader("🎧 Audio Authenticity Check")
+        with gr.Tab("📝 Text"):
+            text_input = gr.Textbox(lines=6, placeholder="Paste text here...")
+            text_output = gr.Textbox()
+            gr.Button("Analyze Text").click(predict_text, text_input, text_output)
 
-    audio_file = st.file_uploader(
-        "Upload Audio (MP3 / WAV)",
-        type=["mp3", "wav"]
-    )
+demo.launch()
 
-    if audio_file:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
-            tmp.write(audio_file.read())
-            audio_path = tmp.name
-
-        try:
-            model = load_audio_model()
-            features = extract_audio_features(audio_path)
-            prediction = model.predict(features)[0][0]
-
-            st.write("🔎 Prediction Score:", round(float(prediction), 4))
-
-            if prediction >= 0.5:
-                st.success("🟢 REAL Audio")
-            else:
-                st.error("🔴 AI-GENERATED Audio")
-
-        except Exception as e:
-            st.error(f"❌ Audio processing failed: {e}")
-
-        finally:
-            os.remove(audio_path)
-
-# =================================================
-# TEXT
-# =================================================
-elif mode == "Text":
-    st.subheader("📝 Text Authenticity Check")
-
-    text_file = st.file_uploader("Upload Text File (.txt)", type=["txt"])
-    text_input = st.text_area("Or paste text here")
-
-    text = ""
-    if text_file:
-        text = text_file.read().decode("utf-8")
-    elif text_input.strip():
-        text = text_input
-
-    if text.strip():
-        model, vectorizer = load_text_model()
-        X = vectorizer.transform([text])
-        pred = model.predict(X)[0]
-
-        if pred == 1:
-            st.error("🔴 AI-GENERATED Text")
-        else:
-            st.success("🟢 REAL (Human-Written) Text")
