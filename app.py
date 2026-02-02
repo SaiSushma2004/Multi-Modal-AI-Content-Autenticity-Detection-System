@@ -56,16 +56,10 @@ def predict_image(img):
     p = model.predict(img)[0][0]
     return f"{p:.4f} | {'REAL' if p >= 0.5 else 'AI-GENERATED'}"
 
-def predict_audio(audio):
+def predict_audio(audio_path):
     model = load_audio_model()
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
-        f.write(audio)
-        path = f.name
-
-    features = extract_audio_features(path)
+    features = extract_audio_features(audio_path)
     p = model.predict(features)[0][0]
-    os.remove(path)
-
     return f"{p:.4f} | {'REAL' if p >= 0.5 else 'AI-GENERATED'}"
 
 def predict_text(text):
@@ -84,8 +78,8 @@ with gr.Blocks() as demo:
         gr.Button("Predict").click(predict_image, img, out)
 
     with gr.Tab("Audio"):
-        aud = gr.Audio(type="binary")
-        out2 = gr.Textbox()
+        aud = gr.Audio(type="filepath",label="Upload Audio WAV/MP3")
+        out2 = gr.Textbox(label="Prediction")
         gr.Button("Predict").click(predict_audio, aud, out2)
 
     with gr.Tab("Text"):
