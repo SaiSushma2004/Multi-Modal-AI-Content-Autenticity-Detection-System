@@ -1,6 +1,4 @@
-altair
-pandas
-streamlit
+gradio
 numpy
 tensorflow
 librosa
@@ -8,3 +6,4 @@ joblib
 scikit-learn
 Pillow
 opencv-python-headless
+
