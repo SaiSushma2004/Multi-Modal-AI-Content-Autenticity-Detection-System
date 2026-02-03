@@ -1,97 +1,144 @@
-# Multi-Modal AI Content Authenticity Detection System
+🧠 Multi-Modal AI Content Authenticity Detection System
+Detect Real vs AI-Generated Image, Audio, and Text Content
 
-## Introduction
-With the rapid advancement of generative AI, distinguishing real content from AI-generated content across multiple formats is becoming crucial. This project implements a **multi-modal AI system** capable of detecting whether images, audio, or text are real or AI-generated using a combination of deep learning and machine learning techniques.
+📌 Overview
 
-The system provides a unified and user-friendly interface allowing users to upload files in supported formats and instantly get authenticity predictions, helping combat misinformation, deepfakes, and synthetic content proliferation.
+With the rapid evolution of Generative AI, distinguishing real content from AI-generated content across different modalities has become critical. Deepfakes, synthetic voices, and machine-generated text pose serious risks in misinformation, fraud, and digital trust.
+This project implements an end-to-end Multi-Modal AI System that detects whether Image, Audio, or Text content is Real or AI-Generated using a combination of Deep Learning and Machine Learning models, deployed as a live cloud application.
+The system provides a single unified Gradio-based interface, allowing users to upload content and instantly receive authenticity predictions.
 
----
+🚀 Live Demo (Cloud Deployment)
 
-## Features / Use Case
-- Detect authenticity of **images** (formats: JPG, PNG) using a CNN model trained on real and AI-generated images.
-- Analyze **audio files** (formats: WAV, MP3) by extracting audio features and classifying real vs synthesized speech.
-- Classify **text content** (formats: TXT, PDF) using NLP techniques to identify human-written versus AI-generated text.
-- User selects the input type and uploads files through a simple Streamlit web app.
-- Real-time prediction with confidence scores to aid content verification and digital forensics.
+🌐 Hugging Face Space (Live App):
+👉 https://huggingface.co/spaces/sushma-ai/Multi-Modal-AI-Content-Authenticity-Detection-System
 
----
+Users can directly upload image, audio, or text files and view real-time predictions without any local setup.
 
-## Technologies Used
-- Python 3.10+
-- TensorFlow / Keras (for image model)
-- Scikit-learn (for audio and text models)
-- Pandas & NumPy (data handling)
-- OpenCV (image processing)
-- Librosa (audio feature extraction)
-- Streamlit (web UI)
-- Joblib (model serialization)
+🎯 Key Features & Use Cases
 
----
+🔍 Multi-Modal Detection
+Image Authenticity Detection
+Detects AI-generated vs real images using a CNN model
+Supported formats: JPG, PNG, JPEG
+Audio Authenticity Detection
+Identifies real vs synthesized speech using audio feature extraction
+Supported formats: WAV, MP3
+Text Authenticity Detection
+Classifies human-written vs AI-generated text using NLP techniques
+Supported formats: TXT, PDF
 
-## Setup and Installation
+⚡ User-Friendly Interface
+Simple Gradio web UI
+Upload → Select modality → Get prediction
+Fast inference with confidence scores
 
-### 1. Clone the repository
+🧩 Real-World Applications
+Fake news and misinformation detection
+Deepfake media verification
+AI-generated content moderation
+Academic integrity & plagiarism analysis
+Digital forensics and research
 
+🧠 Models Used
+Modality	Model Type	Description
+Image	CNN (TensorFlow/Keras)	Trained on real and AI-generated image datasets
+Audio	ML Classifier (Scikit-learn)	Uses MFCC and spectral features extracted via Librosa
+Text	NLP Model (TF-IDF + Classifier)	Detects AI-generated patterns in text
+
+All trained models are saved and loaded during inference for efficient predictions.
+
+🛠️ Tech Stack
+Programming Language: Python 3.10+
+Deep Learning: TensorFlow, Keras
+Machine Learning: Scikit-learn
+NLP: NLTK, TF-IDF
+Audio Processing: Librosa, SoundFile
+Image Processing: OpenCV, Pillow
+UI Framework: Gradio
+Cloud Platform: Hugging Face Spaces
+Model Serialization: Joblib, Pickle
+Data Handling: NumPy, Pandas
+
+📂 Project Structure
+├── app.py                   # Main Gradio application
+├── train_image.py           # Image model training script
+├── train_audio.py           # Audio model training script
+├── train_text.py            # Text model training script
+├── test_image.py            # Image model testing
+├── test_audio.py            # Audio model testing
+├── test_text.py             # Text model testing
+├── dataset/                 # Training datasets
+│   ├── images/
+│   ├── audio/
+│   └── text/
+├── model/                   # Saved trained models & vectorizers
+├── utils/                   # Preprocessing & helper functions
+├── requirements.txt         # Dependencies
+└── README.md                # Project documentation
+
+⚙️ Setup & Installation (Local)
+1️⃣ Clone the Repository
 git clone https://github.com/yourusername/ai-content-authenticity-detector.git
 cd ai-content-authenticity-detector
 
-2. Create and activate a virtual environment
-
+2️⃣ Create Virtual Environment
 python -m venv venv
-# On Windows
+
+# Windows
 venv\Scripts\activate
-# On Linux/Mac
+
+# Linux / macOS
 source venv/bin/activate
 
-3. Install required dependencies
+3️⃣ Install Dependencies
+pip install -r requirements.txt
 
-tensorflow
-opencv-python
-numpy
-pandas
-scikit-learn
-streamlit
-pillow
-librosa
-soundfile
-matplotlib
-nltk
-pickle-mixin
-joblib
-
-4. Train models (optional)
-If you want to retrain models from scratch:
+4️⃣ (Optional) Train Models from Scratch
 python train_image.py
 python train_audio.py
 python train_text.py
 
-5. Run the Streamlit application
-streamlit run app.py
-Project Structure
+Pre-trained models are already included for direct inference.
 
-|-- .streamlit/
-|    |-- config.toml
-├── app.py                  # Main Streamlit app for user interaction
-├── train_image.py          # Script to train image classification model
-├── train_audio.py          # Script to train audio classification model
-├── train_text.py           # Script to train text classification model
-├── test_image.py           # Script to test image model separately
-├── test_audio.py           # Script to test audio model separately
-├── test_text.py            # Script to test text model separately
-├── dataset/                # Datasets for training and testing
-│   ├── images/
-│   ├── audio/
-│   └── text/
-├── model/                  # Trained models and vectorizers
-├── utils/                  # Helper utilities for preprocessing and prediction
-├── requirements.txt        # Python dependencies
-└── README.md               # Project documentation
+5️⃣ Run the Application
+python app.py
 
-6.Description and Use Case
-This project aims to provide a reliable tool for verifying digital content authenticity, which is increasingly important in today's digital ecosystem to:
-Combat misinformation and fake news.
-Prevent misuse of AI-generated media.
-Assist researchers and analysts in detecting synthetic content.
-Help platforms moderate uploaded content efficiently.
+The Gradio interface will launch locally in your browser.
 
-The modular design allows easy extension to new modalities and integration with production systems.
+☁️ Cloud Deployment (Hugging Face Spaces)
+Why Hugging Face Spaces?
+
+Free & fast AI deployment
+Native support for Gradio
+Easy sharing via public live links
+No DevOps or server management needed
+
+Deployment Steps
+
+Create a new Hugging Face Space
+Select Gradio as SDK
+Upload:
+app.py
+requirements.txt
+model/ directory
+
+App auto-builds and goes live 🎉
+
+🧪 Input Formats Supported
+Modality	File Types
+Image	JPG, PNG, JPEG
+Audio	WAV, MP3
+Text	TXT, PDF
+
+🔮 Future Enhancements
+Video deepfake detection
+Large Language Model (LLM) based text detection
+API endpoints for integration
+Confidence explainability (XAI)
+Multi-language text support
+
+👩‍💻 Author
+M.Sai Sushma 
+B.Tech CSE (AI & ML)
+AI | Machine Learning | Cloud Deployment
+🔗 LinkedIn: https://www.linkedin.com/in/sai-sushma-maruboyina-382b34334?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app
